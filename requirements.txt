@@ -1,2 +1,2 @@
-flask
-python-chess
+flask==3.0.2
+python-chess==1.999
