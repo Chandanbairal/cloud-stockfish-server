@@ -1,19 +1,19 @@
-FROM python:3.11-slim
+# Use official Python image
+FROM python:3.10-slim
 
-# Install system dependencies and Stockfish
-RUN apt update && apt install -y stockfish
+# Install dependencies including Stockfish
+RUN apt-get update && \
+    apt-get install -y stockfish && \
+    pip install flask chess
 
 # Set working directory
 WORKDIR /app
 
-# Copy all project files into container
+# Copy all files
 COPY . .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Expose the port Flask uses
+# Expose port
 EXPOSE 8000
 
-# Start the Flask app
+# Run app
 CMD ["python", "main.py"]
