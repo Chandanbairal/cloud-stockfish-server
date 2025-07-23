@@ -4,7 +4,7 @@ import chess.engine
 
 app = Flask(__name__)
 
-STOCKFISH_PATH = "/app/stockfish"  # Railway uses this path for binaries
+STOCKFISH_PATH = "/usr/games/stockfish" # Railway uses this path for binaries
 
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
