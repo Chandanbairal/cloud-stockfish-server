@@ -1,14 +1,15 @@
 FROM python:3.11-slim
 
-# Install dependencies and stockfish
+# Install dependencies and stockfish with explicit path
 RUN apt-get update && \
     apt-get install -y stockfish && \
+    ln -s /usr/games/stockfish /usr/bin/stockfish && \
     pip install flask python-chess && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Verify Stockfish installation
-RUN stockfish --version
+RUN stockfish
 
 # Copy app code
 COPY . /app

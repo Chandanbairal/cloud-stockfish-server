@@ -3,6 +3,7 @@ import chess
 import chess.engine
 import logging
 import time
+import os
 
 app = Flask(__name__)
 
@@ -10,9 +11,10 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STOCKFISH_PATH = "/usr/games/stockfish"
-MAX_ANALYSIS_TIME = 10  # seconds
-DEPTH_RANGE = (20, 30)  # Your requested depth range
+STOCKFISH_PATH = "/usr/bin/stockfish"  # Now properly linked in Dockerfile
+MIN_DEPTH = 20
+MAX_DEPTH = 30
+TIME_LIMIT = 10  # seconds
 
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
@@ -31,10 +33,11 @@ def evaluate():
     
     try:
         with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
-            engine.configure({"Threads": 2})
+            engine.configure({"Threads": 4, "Hash": 128})  # Better configuration
             
-            for depth in range(*DEPTH_RANGE):
-                if time.time() - start_time > MAX_ANALYSIS_TIME:
+            for depth in range(MIN_DEPTH, MAX_DEPTH + 1):
+                if time.time() - start_time > TIME_LIMIT:
+                    logger.info(f"Time limit reached at depth {depth}")
                     break
                 
                 try:
@@ -44,9 +47,10 @@ def evaluate():
                         multipv=1
                     )
                     
-                    # Keep the deepest analysis we can get within time limits
+                    # Keep the deepest analysis
                     if best_result is None or result.get("depth", 0) > best_result.get("depth", 0):
                         best_result = result
+                        logger.info(f"New best depth: {depth}")
                         
                 except chess.engine.EngineError as e:
                     logger.warning(f"Depth {depth} analysis failed: {str(e)}")
@@ -62,33 +66,37 @@ def evaluate():
             else:
                 score_value = score.relative.score()
             
-            best_line = [move.uci() for move in best_result["pv"]]
-            
             return jsonify({
-                "moves": best_line,
+                "moves": [move.uci() for move in best_result["pv"]],
                 "score": score_value,
                 "depth": best_result.get("depth", 0),
-                "time_used": round(time.time() - start_time, 2)
+                "time_used": round(time.time() - start_time, 2),
+                "nodes": best_result.get("nodes", 0)
             })
             
-    except chess.engine.EngineTerminatedError:
-        logger.error("Stockfish engine terminated unexpectedly")
-        return jsonify({"error": "Engine terminated"}), 500
     except Exception as e:
-        logger.error(f"Error during evaluation: {str(e)}")
+        logger.error(f"Evaluation error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/health')
 def health():
     try:
         with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
-            return jsonify({"status": "healthy", "engine": "stockfish"}), 200
+            return jsonify({
+                "status": "healthy",
+                "engine": engine.id["name"],
+                "protocol": engine.id["protocol"]
+            }), 200
     except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "expected_path": STOCKFISH_PATH
+        }), 500
 
 @app.route('/')
 def home():
-    return "♟️ Stockfish Cloud Server Running (Depth 20-30 Analysis)"
+    return "♟️ Stockfish Cloud Server (Depth 20-30 Analysis)"
 
 if __name__ == '__main__':
     app.run(debug=False, host="0.0.0.0", port=8000)
