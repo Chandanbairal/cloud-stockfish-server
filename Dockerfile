@@ -1,19 +1,14 @@
-# Use official Python image
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Install dependencies including Stockfish
+# Install dependencies and stockfish
 RUN apt-get update && \
     apt-get install -y stockfish && \
-    pip install flask chess
+    pip install flask python-chess && \
+    apt-get clean
 
-# Set working directory
+# Copy app code
+COPY . /app
 WORKDIR /app
 
-# Copy all files
-COPY . .
-
-# Expose port
 EXPOSE 8000
-
-# Run app
 CMD ["python", "main.py"]
